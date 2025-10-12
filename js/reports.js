@@ -41,40 +41,137 @@ const showReportsProjectList = () => {
 
 
 const displayBoqFromData = (boqData) => {
-    boqTbody.innerHTML = '';
-    boqTfoot.innerHTML = '';
-    let grandTotal = 0;
-    const sortedCategories = Object.keys(boqData).sort();
-    for (const category of sortedCategories) {
-        const categorySubtotal = boqData[category].reduce((sum, item) => sum + item.totalAmount, 0);
-        grandTotal += categorySubtotal;
+    boqTbody.innerHTML = '';
+    boqTfoot.innerHTML = '';
+    let grandTotal = 0;
+    const sortedCategories = Object.keys(boqData).sort();
+    for (const category of sortedCategories) {
+        const categorySubtotal = boqData[category].reduce((sum, item) => sum + item.totalAmount, 0);
+        grandTotal += categorySubtotal;
 
-        const headerRow = boqTbody.insertRow();
-        headerRow.className = 'category-header-row';
-        headerRow.innerHTML = `
-            <td colspan="4"><strong>${category}</strong></td>
-            <td style="text-align: right;"><strong>${categorySubtotal.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</strong></td>
-            <td></td>
-        `;
+        const headerRow = boqTbody.insertRow();
+        headerRow.className = 'category-header-row';
+        headerRow.innerHTML = `
+            <td colspan="4"><strong>${category}</strong></td>
+            <td style="text-align: right;"><strong>${categorySubtotal.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</strong></td>
+            <td></td>
+        `;
 
-        boqData[category].forEach(item => {
-            const row = boqTbody.insertRow();
-            row.innerHTML = `
-                <td>${item.scopeOfWork}</td>
-                <td>${item.quantity.toLocaleString()}</td>
-                <td>${item.unit}</td>
-                <td style="text-align: right;">${item.unitPrice.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</td>
-                <td style="text-align: right;">${item.totalAmount.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</td>
-                <td class="actions-cell"><button class="btn btn-secondary view-dupa-details-btn" data-quantity-id="${item.quantityId}">View DUPA</button></td>
-            `;
-        });
-    }
-    boqTfoot.innerHTML = `
-        <tr class="boq-summary-row">
-            <td colspan="5" style="text-align: right;">Grand Total</td>
-            <td style="text-align: right;">${grandTotal.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</td>
-        </tr>
-    `;
+        boqData[category].forEach(item => {
+            const row = boqTbody.insertRow();
+            row.innerHTML = `
+                <td>${item.scopeOfWork}</td>
+                <td>${item.quantity.toLocaleString()}</td>
+                <td>${item.unit}</td>
+                <td style="text-align: right;">${item.unitPrice.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</td>
+                <td style="text-align: right;">${item.totalAmount.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</td>
+                <td class="actions-cell"><button class="btn btn-secondary view-dupa-details-btn" data-quantity-id="${item.quantityId}">View DUPA</button></td>
+            `;
+        });
+    }
+    boqTfoot.innerHTML = `
+        <tr class="boq-summary-row">
+            <td colspan="4" style="text-align: right;">Grand Total</td>
+            <td style="text-align: right;">${grandTotal.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</td>
+            <td></td>
+        </tr>
+    `;
+    document.getElementById('boq-table').className = 'boq-table-professional';
+};
+
+const showRevisedBoqForProject = async (projectId, projectName, showTheView = true) => {
+    currentBoqProjectId = projectId;
+    revisedBoqProjectName.textContent = `Revised BOQ: ${projectName}`;
+    
+    // Always fetch and render the data in the background
+    const { allTasks, allDupas } = await getAllTasksForReport(projectId, true);
+    const dupaMap = new Map();
+    allDupas.forEach(d => {
+        const key = d.quantityId || d.changeOrderItemId;
+        dupaMap.set(key, d);
+    });
+
+    const originalItems = allTasks.filter(task => !task.changeOrderId);
+    const changeOrderItems = allTasks.filter(task => task.changeOrderId);
+
+    const groupedOriginals = originalItems.reduce((acc, task) => {
+        const category = task.category || 'Uncategorized';
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(task);
+        return acc;
+    }, {});
+
+    let tableHtml = '<table id="revised-boq-table" class="boq-table-professional"><thead><tr><th>Scope of Work</th><th>Quantity</th><th>Unit</th><th>Unit Price</th><th>Total Amount</th><th>Actions</th></tr></thead><tbody>';
+    let grandTotal = 0;
+
+    const sortedCategories = Object.keys(groupedOriginals).sort();
+    for (const category of sortedCategories) {
+        const categoryTasks = groupedOriginals[category];
+        const categorySubtotal = categoryTasks.reduce((sum, task) => {
+            const dupa = dupaMap.get(task.id);
+            return sum + calculateDupaTotalCost(dupa);
+        }, 0);
+        grandTotal += categorySubtotal;
+
+        tableHtml += `<tr class="category-header-row">
+                        <td colspan="5"><strong>${category}</strong></td>
+                        <td style="text-align: right;"><strong>${categorySubtotal.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</strong></td>
+                      </tr>`;
+
+        categoryTasks.forEach(task => {
+            const dupa = dupaMap.get(task.id);
+            const totalAmount = calculateDupaTotalCost(dupa);
+            const unitPrice = (task.quantity !== 0) ? (totalAmount / task.quantity) : 0;
+            tableHtml += `
+                <tr>
+                    <td>${task.displayName}</td>
+                    <td>${task.quantity.toLocaleString()}</td>
+                    <td>${task.unit}</td>
+                    <td style="text-align: right;">${unitPrice.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
+                    <td style="text-align: right;">${totalAmount.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
+                    <td></td>
+                </tr>
+            `;
+        });
+    }
+
+    if (changeOrderItems.length > 0) {
+        const coSubtotal = changeOrderItems.reduce((sum, task) => {
+            const dupa = dupaMap.get(task.id);
+            return sum + calculateDupaTotalCost(dupa);
+        }, 0);
+        grandTotal += coSubtotal;
+
+        tableHtml += `<tr class="category-header-row">
+                        <td colspan="5"><strong>Change Orders</strong></td>
+                        <td style="text-align: right;"><strong>${coSubtotal.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</strong></td>
+                      </tr>`;
+
+        changeOrderItems.forEach(task => {
+            const dupa = dupaMap.get(task.id);
+            const totalAmount = calculateDupaTotalCost(dupa);
+            const unitPrice = (task.quantity !== 0) ? (totalAmount / task.quantity) : 0;
+            tableHtml += `
+                <tr>
+                    <td>${task.displayName}</td>
+                    <td>${task.quantity.toLocaleString()}</td>
+                    <td>${task.unit}</td>
+                    <td style="text-align: right;">${unitPrice.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
+                    <td style="text-align: right;">${totalAmount.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
+                    <td class="actions-cell"><button class="btn btn-secondary view-co-dupa-details-btn" data-co-item-id="${task.id}">View DUPA</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    tableHtml += `</tbody><tfoot><tr class="boq-summary-row"><td colspan="5" style="text-align:right;">Revised Grand Total</td><td style="text-align: right;">${grandTotal.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td></tr></tfoot></table>`;
+    revisedBoqTableContainer.innerHTML = tableHtml;
+
+    // Only manage view visibility if this function was called to be shown
+    if (showTheView) {
+        revisedPertCpmDisplayView.classList.add('hidden');
+        revisedBoqDisplayView.classList.remove('hidden');
+    }
 };
 
 const generateAndLockBoq = async () => {
@@ -821,100 +918,7 @@ const showRevisedResourceSchedule = async () => {
     scheduleContainer.innerHTML = `<div class="dupa-section"><div class="table-container">${tableHtml}</div></div>`;
 };
 
-const showRevisedBoqForProject = async (projectId, projectName, showTheView = true) => {
-    currentBoqProjectId = projectId;
-    revisedBoqProjectName.textContent = `Revised BOQ: ${projectName}`;
-    
-    // Always fetch and render the data in the background
-    const { allTasks, allDupas } = await getAllTasksForReport(projectId, true);
-    const dupaMap = new Map();
-    allDupas.forEach(d => {
-        const key = d.quantityId || d.changeOrderItemId;
-        dupaMap.set(key, d);
-    });
 
-    const originalItems = allTasks.filter(task => !task.changeOrderId);
-    const changeOrderItems = allTasks.filter(task => task.changeOrderId);
-
-    const groupedOriginals = originalItems.reduce((acc, task) => {
-        const category = task.category || 'Uncategorized';
-        if (!acc[category]) acc[category] = [];
-        acc[category].push(task);
-        return acc;
-    }, {});
-
-    let tableHtml = '<table id="revised-boq-table"><thead><tr><th>Scope of Work</th><th>Quantity</th><th>Unit</th><th>Unit Price</th><th>Total Amount</th><th>Actions</th></tr></thead><tbody>';
-    let grandTotal = 0;
-
-    const sortedCategories = Object.keys(groupedOriginals).sort();
-    for (const category of sortedCategories) {
-        const categoryTasks = groupedOriginals[category];
-        const categorySubtotal = categoryTasks.reduce((sum, task) => {
-            const dupa = dupaMap.get(task.id);
-            return sum + calculateDupaTotalCost(dupa);
-        }, 0);
-        grandTotal += categorySubtotal;
-
-        tableHtml += `<tr class="category-header-row">
-                        <td colspan="5"><strong>${category}</strong></td>
-                        <td style="text-align: right;"><strong>${categorySubtotal.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</strong></td>
-                      </tr>`;
-
-        categoryTasks.forEach(task => {
-            const dupa = dupaMap.get(task.id);
-            const totalAmount = calculateDupaTotalCost(dupa);
-            const unitPrice = (task.quantity !== 0) ? (totalAmount / task.quantity) : 0;
-            tableHtml += `
-                <tr>
-                    <td>${task.displayName}</td>
-                    <td>${task.quantity.toLocaleString()}</td>
-                    <td>${task.unit}</td>
-                    <td style="text-align: right;">${unitPrice.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
-                    <td style="text-align: right;">${totalAmount.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
-                    <td></td>
-                </tr>
-            `;
-        });
-    }
-
-    if (changeOrderItems.length > 0) {
-        const coSubtotal = changeOrderItems.reduce((sum, task) => {
-            const dupa = dupaMap.get(task.id);
-            return sum + calculateDupaTotalCost(dupa);
-        }, 0);
-        grandTotal += coSubtotal;
-
-        tableHtml += `<tr class="category-header-row">
-                        <td colspan="5"><strong>Change Orders</strong></td>
-                        <td style="text-align: right;"><strong>${coSubtotal.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</strong></td>
-                      </tr>`;
-
-        changeOrderItems.forEach(task => {
-            const dupa = dupaMap.get(task.id);
-            const totalAmount = calculateDupaTotalCost(dupa);
-            const unitPrice = (task.quantity !== 0) ? (totalAmount / task.quantity) : 0;
-            tableHtml += `
-                <tr>
-                    <td>${task.displayName}</td>
-                    <td>${task.quantity.toLocaleString()}</td>
-                    <td>${task.unit}</td>
-                    <td style="text-align: right;">${unitPrice.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
-                    <td style="text-align: right;">${totalAmount.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td>
-                    <td class="actions-cell"><button class="btn btn-secondary view-co-dupa-details-btn" data-co-item-id="${task.id}">View DUPA</button></td>
-                </tr>
-            `;
-        });
-    }
-
-    tableHtml += `</tbody><tfoot><tr class="boq-summary-row"><td colspan="5" style="text-align:right;">Revised Grand Total</td><td style="text-align: right;">${grandTotal.toLocaleString('en-ph', { style: 'currency', currency: 'PHP' })}</td></tr></tfoot></table>`;
-    revisedBoqTableContainer.innerHTML = tableHtml;
-
-    // Only manage view visibility if this function was called to be shown
-    if (showTheView) {
-        revisedPertCpmDisplayView.classList.add('hidden');
-        revisedBoqDisplayView.classList.remove('hidden');
-    }
-};
 
 const showDupaDetails = async (quantityId) => {
     const quantity = await db.quantities.get(quantityId);

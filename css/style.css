@@ -1624,3 +1624,64 @@ body.dark-theme .mermaid-container {
     gap: 2rem;
     align-items: start;
 }
+.dupa-summary-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    max-width: 500px;
+    margin-left: auto;
+}
+
+.summary-line-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.summary-line-item span:first-child {
+    color: var(--grey-color);
+}
+
+.summary-line-item .cost-summary {
+    font-weight: 600;
+    min-width: 120px;
+    text-align: right;
+}
+
+.summary-line-item input[type="number"] {
+    width: 60px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 0 5px;
+    text-align: right;
+}
+
+.summary-line-item.indirect {
+    padding-left: 2rem;
+    font-size: 0.9rem;
+}
+
+.summary-line-item.grand-total {
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-top: 2px solid var(--dark-color);
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+}
+
+.summary-line-item.final-unit-price {
+    background-color: var(--light-color);
+    padding: 1rem;
+    margin-top: 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.summary-line-item.final-unit-price .cost-summary {
+    color: var(--primary-color);
+}

@@ -33,8 +33,8 @@ function saveSetting(key, value) {
  */
 function applySettingsToUI() {
     const settings = loadSettings();
-    autoSyncToggle.checked = settings.autoSyncEnabled;
-    autoSyncIntervalSelect.value = settings.autoSyncInterval;
+    if (autoSyncToggle) autoSyncToggle.checked = settings.autoSyncEnabled;
+    if (autoSyncIntervalSelect) autoSyncIntervalSelect.value = settings.autoSyncInterval;
 }
 
 function initializeSettingsModule() {
@@ -44,30 +44,34 @@ function initializeSettingsModule() {
     autoSyncIntervalSelect = document.getElementById('auto-sync-interval');
 
     // Load settings and apply them to the UI when the module starts
-    applySettingsToUI();
+    if (autoSyncToggle && autoSyncIntervalSelect) {
+        applySettingsToUI();
+    }
 
     // Add event listeners to save changes
-    autoSyncToggle.addEventListener('change', (event) => {
-        const isEnabled = event.target.checked;
+    if (autoSyncToggle) {
+        autoSyncToggle.addEventListener('change', (event) => {
+            const isEnabled = event.target.checked;
 
-        // Check if user is trying to enable the feature without being signed in.
-        if (isEnabled && !auth.currentUser) {
-            alert("Please sign in with Google first to enable auto-sync.");
-            event.target.checked = false; // Revert the toggle to the "off" position.
-            return; // Stop further execution.
-        }
+            if (isEnabled && !currentUser) {
+                alert("Please sign in with Google first to enable auto-sync.");
+                event.target.checked = false; // Revert the toggle
+                return;
+            }
 
-        saveSetting('autoSyncEnabled', isEnabled);
-        // We will add the logic to start/stop the sync timer here later
-        console.log(`Auto-sync ${isEnabled ? 'enabled' : 'disabled'}.`);
-    });
+            saveSetting('autoSyncEnabled', isEnabled);
+            if (isEnabled) startAutoSync();
+            else stopAutoSync();
+        });
+    }
 
-    autoSyncIntervalSelect.addEventListener('change', (event) => {
-        const interval = parseInt(event.target.value, 10);
-        saveSetting('autoSyncInterval', interval);
-        // We will add the logic to restart the timer with the new interval here later
-        console.log(`Auto-sync interval set to ${interval} minutes.`);
-    });
+    if (autoSyncIntervalSelect) {
+        autoSyncIntervalSelect.addEventListener('change', (event) => {
+            const interval = parseInt(event.target.value, 10);
+            saveSetting('autoSyncInterval', interval);
+            if (loadSettings().autoSyncEnabled) startAutoSync();
+        });
+    }
 
     settingsModuleInitialized = true;
 }

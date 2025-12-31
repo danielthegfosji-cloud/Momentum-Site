@@ -93,6 +93,7 @@ function startApp() {
     initializeDataManagementModule();
     initializeThemeManagerModule();
     
+    initializeSyncModule();
     const authButton = document.getElementById('google-auth-btn');
     if (authButton) {
         authButton.addEventListener('click', handleAuthClick);
@@ -127,6 +128,7 @@ window.addEventListener('load', () => {
             startOnLoad: false,
             theme: isDarkMode ? 'dark' : 'default'
         });
+        startApp();
     }).catch(err => {
         console.error("Failed to open db: ", err.stack || err);
     });

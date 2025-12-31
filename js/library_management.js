@@ -198,8 +198,8 @@ function initializeLibraryManagementModule() {
     document.querySelector('.import-preview-modal-close').addEventListener('click', closeImportPreviewModal);
     document.getElementById('import-proceed-duplicates-btn').addEventListener('click', () => executeImport('overwrite'));
     document.getElementById('import-proceed-new-btn').addEventListener('click', () => executeImport('new_only'));
-    document.getElementById('export-library-gdrive-btn').addEventListener('click', saveLibraryToDrive);
-    document.getElementById('import-library-gdrive-btn').addEventListener('click', handleLibraryImportClick);
+    // document.getElementById('export-library-gdrive-btn').addEventListener('click', saveLibraryToDrive);
+    // document.getElementById('import-library-gdrive-btn').addEventListener('click', handleLibraryImportClick);
     
     libraryManagementModuleInitialized = true;
 }

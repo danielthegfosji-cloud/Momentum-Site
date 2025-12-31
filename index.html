@@ -62,11 +62,11 @@
                     <h1>Settings</h1>
                 </header>
                 <div class="summary-card" style="text-align: left; max-width: 600px;">
-                    <h2 class="card-title">Google Drive Synchronization</h2>
+                    <h2 class="card-title">Firebase Cloud Sync</h2>
                     <div class="setting-item">
                         <div class="setting-label">
                             <label for="auto-sync-toggle">Enable Auto-Sync</label>
-                            <p>Automatically save any modified project to Google Drive in the background.</p>
+                            <p>Automatically save all project data to the cloud in the background.</p>
                         </div>
                         <label class="toggle-switch">
                             <input type="checkbox" id="auto-sync-toggle">
@@ -76,7 +76,7 @@
                     <div class="setting-item">
                         <div class="setting-label">
                             <label for="auto-sync-interval">Sync Interval</label>
-                            <p>How often to check for and save modified projects.</p>
+                            <p>How often to save all projects to the cloud.</p>
                         </div>
                         <select id="auto-sync-interval" class="btn btn-secondary">
                             <option value="1">Every 1 Minute</option>
@@ -230,7 +230,7 @@
                     <div>
                         <input type="file" id="import-project-input" class="hidden" accept=".json">
                         <button id="import-project-btn" class="btn btn-secondary">Import from File</button>
-                        <button id="import-gdrive-btn" class="btn btn-secondary">Import from Drive</button>
+                        <!-- <button id="import-gdrive-btn" class="btn btn-secondary">Import from Drive</button> -->
                         <button id="copy-project-btn" class="btn btn-secondary">Copy Project</button>
                         <button id="add-project-btn" class="btn btn-primary">Add New Project</button>
                     </div>
@@ -905,7 +905,7 @@
                     <h2>Export Library</h2>
                     <p>Save your entire Materials, Resources, and Crews library.</p>
                     <button id="export-library-btn" class="btn btn-primary">Export to File</button>
-                    <button id="export-library-gdrive-btn" class="btn btn-secondary">Export to Google Drive</button>
+                    <!-- <button id="export-library-gdrive-btn" class="btn btn-secondary">Export to Google Drive</button> -->
                 </div>
 
                 <div class="library-section">
@@ -913,7 +913,7 @@
                     <p>Load a previously saved library. Importing will give you the option to merge new items or overwrite existing ones.</p>
                     <input type="file" id="import-library-input" class="hidden" accept=".json">
                     <button id="import-library-btn" class="btn btn-secondary">Import from File</button>
-                    <button id="import-library-gdrive-btn" class="btn btn-secondary">Import from Google Drive</button>
+                    <!-- <button id="import-library-gdrive-btn" class="btn btn-secondary">Import from Google Drive</button> -->
                 </div>
             </div>
             <div id="material-modal" class="modal">
@@ -1457,6 +1457,11 @@
         </div>
         
         <script src="js/dexie.min.js"></script>
+        <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+        <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+        <!-- Add SDKs for Firebase products you want to use -->
+        <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="js/db.js"></script>
         <script src="js/views.js"></script>
@@ -1471,14 +1476,14 @@
         <script src="js/construction.js"></script>
         <script src="js/reports.js"></script>
         <script src="js/change_orders.js"></script>
+        <script src="js/firebase_config.js"></script>
         <script src="js/settings.js"></script>
         <script src="js/data_management.js"></script>
         <script src="js/ai_sequencer.js"></script>
         <script src="js/theme_manager.js"></script>
         <script src="js/app.js"></script>
         <script src="js/gdrive.js"></script>
-        
-        <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
-        <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+        <script src="js/firestore_sync.js"></script>
+        <!-- The GAPI and GIS scripts are no longer needed for Firebase Auth -->
     </body>
 </html>

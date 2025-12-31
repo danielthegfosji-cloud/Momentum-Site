@@ -11,11 +11,20 @@ const exportAllData = async () => {
         return;
     }
     try {
-        const fullBackup = {};
+        const backupData = {};
         const tables = db.tables.map(t => t.name);
         for (const tableName of tables) {
-            fullBackup[tableName] = await db.table(tableName).toArray();
+            backupData[tableName] = await db.table(tableName).toArray();
         }
+
+        const fullBackup = {
+            metadata: {
+                appName: 'Momentum',
+                timestamp: new Date().toISOString(),
+                schemaVersion: db.verno,
+            },
+            data: backupData
+        };
 
         const blob = new Blob([JSON.stringify(fullBackup, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
@@ -38,21 +47,31 @@ const importAllData = (file) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
-            const data = JSON.parse(e.target.result);
-            const tableNamesInData = Object.keys(data);
+            const rawData = JSON.parse(e.target.result);
+            
+            // Handle legacy (direct object) vs new (metadata wrapped) format
+            let dataToImport = rawData;
+            if (rawData.metadata && rawData.data) {
+                dataToImport = rawData.data;
+            }
+
+            const tableNamesInData = Object.keys(dataToImport);
             const allAppTableNames = db.tables.map(t => t.name);
 
-            const isDataValid = tableNamesInData.length > 0 && tableNamesInData.every(name => allAppTableNames.includes(name));
-            if (!isDataValid) {
-                throw new Error("The selected file does not appear to be a valid Momentum backup file.");
+            const validTables = tableNamesInData.filter(name => allAppTableNames.includes(name));
+
+            if (validTables.length === 0) {
+                throw new Error("The selected file does not appear to be a valid Momentum backup file (no matching tables found).");
             }
 
             if (confirm('WARNING: Importing a full backup will ERASE all current data in the application. This action cannot be undone. Are you sure you want to continue?')) {
                 await db.transaction('rw', allAppTableNames, async () => {
                     for (const tableName of allAppTableNames) {
                         await db.table(tableName).clear();
-                        if (data[tableName] && data[tableName].length > 0) {
-                            await db.table(tableName).bulkPut(data[tableName]);
+                    }
+                    for (const tableName of validTables) {
+                        if (dataToImport[tableName] && dataToImport[tableName].length > 0) {
+                            await db.table(tableName).bulkPut(dataToImport[tableName]);
                         }
                     }
                 });

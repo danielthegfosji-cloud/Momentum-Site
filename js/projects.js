@@ -340,12 +340,6 @@ const displayProjects = async () => {
             <td>${p.projectStatus || 'N/A'}</td>
             <td class="actions-cell">
                 <button class="btn btn-primary summary-btn" data-id="${p.id}">Manage Project</button>
-                <button class="btn btn-secondary gdrive-save-btn" data-id="${p.id}" title="Save to Google Drive">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path fill-rule="evenodd" d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-4.242 3.15c-.337.042-.68.107-1.022.166A2.5 2.5 0 0 0 1 7.22v.004a2.5 2.5 0 0 0 2.5 2.472h1.168a.5.5 0 0 1 0 1H3.5a3.5 3.5 0 1 1 .59-6.95 5.002 5.002 0 0 1 9.804 0 3.5 3.5 0 1 1-2.006 6.354H8.5a.5.5 0 0 1 0-1h1.125a2.5 2.5 0 0 0 1.961-4.246 3.5 3.5 0 0 0-6.323-2.025 4.5 4.5 0 0 0-1.022-.165z"/>
-                        <path fill-rule="evenodd" d="M7.646 5.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2z"/>
-                    </svg>
-                </button>
                 <button class="btn btn-warning edit-btn" data-id="${p.id}" title="Edit Project">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/></svg>
                 </button>
@@ -384,10 +378,10 @@ function initializeProjectsModule() {
 
     copyProjectModalClose.addEventListener('click', closeCopyProjectModal);
 
-    document.getElementById('import-gdrive-btn').addEventListener('click', () => {
-        // This function is defined in js/gdrive.js
-        handleImportClick();
-    });
+    // document.getElementById('import-gdrive-btn').addEventListener('click', () => {
+    //     // This function is defined in js/gdrive.js
+    //     handleImportClick();
+    // });
 
     copyProjectForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -618,9 +612,9 @@ function initializeProjectsModule() {
     if (target.classList.contains('export-btn')) {
         await exportProject(id);
     }
-    if (target.classList.contains('gdrive-save-btn')) {
-        await saveProjectToDrive(id);
-    }
+    // if (target.classList.contains('gdrive-save-btn')) {
+    //     await saveProjectToDrive(id);
+    // }
     });
 
     projectsModuleInitialized = true;

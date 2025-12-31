@@ -5,7 +5,7 @@ let autoSyncToggle, autoSyncIntervalSelect;
 
 // --- Default Settings ---
 const defaultSettings = {
-    autoSyncEnabled: false,
+    autoSyncEnabled: true,
     autoSyncInterval: 5, // in minutes
 };
 

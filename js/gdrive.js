@@ -6,9 +6,7 @@ const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/r
 const FOLDER_NAME = 'momentum-projects';
 
 // --- Global State ---
-let tokenClient;
 let gapiReady = false;
-let gisReady = false;
 
 // --- Initialization ---
 
@@ -20,13 +18,6 @@ function gapiLoaded() {
 }
 
 /**
- * Called once the Google Identity Services (GIS) script has loaded.
- */
-function gisLoaded() {
-    initializeGisClient();
-}
-
-/**
  * Initializes the GAPI client library.
  */
 async function initializeGapiClient() {
@@ -35,27 +26,6 @@ async function initializeGapiClient() {
         discoveryDocs: DISCOVERY_DOCS,
     });
     gapiReady = true;
-    updateSigninStatus(gapi.client.getToken() !== null);
-    tryStartApp();
-}
-
-/**
- * Initializes the GIS client library.
- */
-function initializeGisClient() {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-            if (tokenResponse.error) {
-                alert('Google sign-in error: ' + tokenResponse.error);
-                return;
-            }
-            gapi.client.setToken(tokenResponse);
-            updateSigninStatus(true);
-        },
-    });
-    gisReady = true;
     tryStartApp();
 }
 
@@ -63,15 +33,27 @@ function initializeGisClient() {
  * Checks if both libraries are ready and then starts the main application.
  */
 function tryStartApp() {
-    if (gapiReady && gisReady) {
+    // Firebase auth is initialized independently in firebase_config.js
+    if (gapiReady) {
         startApp(); // This function is defined in app.js
     }
 }
 
+/**
+ * Listens for Firebase authentication state changes and updates the UI
+ * and GAPI client accordingly.
+ */
+auth.onAuthStateChanged(user => {
+    updateSigninStatus(!!user);
+    if (!user) {
+        // If user signs out, clear the GAPI token
+        gapi.client.setToken('');
+    }
+});
 
 /**
  * Updates the Sign In/Out button text based on the current auth state.
- * @param {boolean} isSignedIn 
+ * @param {boolean} isSignedIn
  */
 function updateSigninStatus(isSignedIn) {
     const authButton = document.getElementById('google-auth-btn');
@@ -92,21 +74,34 @@ function updateSigninStatus(isSignedIn) {
 }
 
 /**
- * Main entry point for authentication.
- * It will request an access token or sign out if one exists.
+ * Handles the authentication flow using Firebase.
+ * Signs in with Google via a popup or signs the current user out.
  */
 function handleAuthClick() {
-    if (gapi.client.getToken() === null) {
-        // This forces the account chooser to appear.
-        tokenClient.requestAccessToken({ prompt: 'select_account' });
-    } else {
-        const token = gapi.client.getToken();
-        if (token !== null) {
-            google.accounts.oauth2.revoke(token.access_token, () => {
-                gapi.client.setToken('');
-                updateSigninStatus(false);
+    if (!auth.currentUser) {
+        // User is not signed in, so start the sign-in process.
+        auth.signInWithPopup(googleProvider)
+            .then((result) => {
+                // This gives you a Google Access Token.
+                const credential = result.credential;
+                const token = credential.accessToken;
+                
+                // Set the token for the GAPI client to use for Drive API calls
+                gapi.client.setToken({ access_token: token });
+
+                console.log("Signed in as:", result.user.displayName);
+                updateSigninStatus(true);
+            }).catch((error) => {
+                console.error("Firebase Auth Error:", error.code, error.message);
+                alert(`Google sign-in error: ${error.message}`);
             });
-        }
+    } else {
+        // User is signed in, so sign them out.
+        auth.signOut().then(() => {
+            console.log("User signed out.");
+        }).catch((error) => {
+            console.error("Firebase Sign Out Error:", error);
+        });
     }
 }
 
@@ -189,17 +184,19 @@ async function getOrCreateFolderId() {
  * @param {number} projectId The ID of the project to save.
  */
 async function saveProjectToDrive(projectId) {
-    // If not signed in, prompt for sign-in and wait for the token.
-    if (gapi.client.getToken() === null) {
-        tokenClient.callback = async (tokenResponse) => {
-            if (tokenResponse.error) {
-                throw new Error('Google sign-in error: ' + tokenResponse.error);
-            }
-            gapi.client.setToken(tokenResponse);
-            await saveProjectToDrive(projectId); // Retry the save operation
-        };
-        // This forces the account chooser to appear.
-        tokenClient.requestAccessToken({ prompt: 'select_account' });
+    if (!auth.currentUser) {
+        alert("Please sign in to save your project to Google Drive.");
+        handleAuthClick(); // Prompt user to sign in
+        return;
+    }
+
+    // GAPI token might not be set yet if the page was just loaded.
+    // We can get it from the sign-in result, but if the user is already signed in,
+    // we need to ensure GAPI has the token. A robust way is to re-authenticate silently
+    // or manage the token more explicitly. For this app, we'll rely on the token
+    // being set during the initial sign-in. If it's missing, we'll alert the user.
+    if (!gapi.client.getToken()) {
+        alert("Authentication token is missing. Please try signing out and signing back in.");
         return;
     }
 
@@ -280,8 +277,8 @@ async function saveProjectToDrive(projectId) {
  * Main function to trigger the Google Drive import process.
  */
 function handleImportClick() {
-     if (gapi.client.getToken() === null) {
-        alert('Please sign in to import a project.');
+     if (!auth.currentUser) {
+        alert('Please sign in with Google to import a project from Drive.');
         handleAuthClick();
         return;
     }
@@ -292,7 +289,7 @@ function handleImportClick() {
  * Creates and displays the Google Picker interface.
  */
 async function createPicker() {
-    const token = gapi.client.getToken();
+    const token = gapi.client.getToken(); // GAPI token should be set from Firebase sign-in
     if (token === null) return;
 
     // First, get the ID of the dedicated app folder.
@@ -359,8 +356,8 @@ async function getLibraryDataAsJson() {
  * Saves the entire library to a file in Google Drive.
  */
 async function saveLibraryToDrive() {
-    if (gapi.client.getToken() === null) {
-        alert('Please sign in to save the library.');
+    if (!auth.currentUser) {
+        alert('Please sign in with Google to save the library to Drive.');
         handleAuthClick();
         return;
     }
@@ -447,8 +444,8 @@ async function libraryPickerCallback(data) {
  * Triggers the Google Drive import process for the library.
  */
 async function handleLibraryImportClick() {
-     if (gapi.client.getToken() === null) {
-        alert('Please sign in to import a library.');
+     if (!auth.currentUser) {
+        alert('Please sign in with Google to import a library from Drive.');
         handleAuthClick();
         return;
     }

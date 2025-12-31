@@ -51,7 +51,7 @@ function initializeSettingsModule() {
         const isEnabled = event.target.checked;
 
         // Check if user is trying to enable the feature without being signed in.
-        if (isEnabled && gapi.client.getToken() === null) {
+        if (isEnabled && !auth.currentUser) {
             alert("Please sign in with Google first to enable auto-sync.");
             event.target.checked = false; // Revert the toggle to the "off" position.
             return; // Stop further execution.

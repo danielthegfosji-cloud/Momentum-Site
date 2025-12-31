@@ -1,77 +1,7 @@
 let settingsModuleInitialized = false;
 
-// --- DOM References ---
-let autoSyncToggle, autoSyncIntervalSelect;
-
-// --- Default Settings ---
-const defaultSettings = {
-    autoSyncEnabled: true,
-    autoSyncInterval: 5, // in minutes
-};
-
-/**
- * Loads settings from localStorage or uses defaults.
- */
-function loadSettings() {
-    const savedSettings = JSON.parse(localStorage.getItem('momentumSettings'));
-    return { ...defaultSettings, ...savedSettings };
-}
-
-/**
- * Saves a specific setting to localStorage.
- * @param {string} key The setting key to save.
- * @param {any} value The value to save.
- */
-function saveSetting(key, value) {
-    const settings = loadSettings();
-    settings[key] = value;
-    localStorage.setItem('momentumSettings', JSON.stringify(settings));
-}
-
-/**
- * Applies the loaded settings to the UI elements.
- */
-function applySettingsToUI() {
-    const settings = loadSettings();
-    if (autoSyncToggle) autoSyncToggle.checked = settings.autoSyncEnabled;
-    if (autoSyncIntervalSelect) autoSyncIntervalSelect.value = settings.autoSyncInterval;
-}
-
 function initializeSettingsModule() {
     if (settingsModuleInitialized) return;
-
-    autoSyncToggle = document.getElementById('auto-sync-toggle');
-    autoSyncIntervalSelect = document.getElementById('auto-sync-interval');
-
-    // Load settings and apply them to the UI when the module starts
-    if (autoSyncToggle && autoSyncIntervalSelect) {
-        applySettingsToUI();
-    }
-
-    // Add event listeners to save changes
-    if (autoSyncToggle) {
-        autoSyncToggle.addEventListener('change', (event) => {
-            const isEnabled = event.target.checked;
-
-            if (isEnabled && !currentUser) {
-                alert("Please sign in with Google first to enable auto-sync.");
-                event.target.checked = false; // Revert the toggle
-                return;
-            }
-
-            saveSetting('autoSyncEnabled', isEnabled);
-            if (isEnabled) startAutoSync();
-            else stopAutoSync();
-        });
-    }
-
-    if (autoSyncIntervalSelect) {
-        autoSyncIntervalSelect.addEventListener('change', (event) => {
-            const interval = parseInt(event.target.value, 10);
-            saveSetting('autoSyncInterval', interval);
-            if (loadSettings().autoSyncEnabled) startAutoSync();
-        });
-    }
-
+    // Sync settings are now handled automatically by the real-time sync module.
     settingsModuleInitialized = true;
 }

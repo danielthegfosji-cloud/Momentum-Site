@@ -203,7 +203,7 @@ const importProjectData = async (data) => {
         return;
     }
     data.project.projectName = newProjectName;
-    delete data.project.id;
+    data.project.id = generateULID(); // Generate a new ULID for the imported project
     if (!data.project.startDate) {
         data.project.startDate = null;
     }
@@ -214,7 +214,7 @@ const importProjectData = async (data) => {
         await db.transaction('rw', allTables, async () => {
             const oldToNewTaskIdMap = new Map();
             
-            const newProjectId = await db.projects.add(data.project);
+            const newProjectId = await db.projects.put(data.project); // Use put since we are providing the ID
 
             // Process original quantities
             if (data.quantities && data.quantities.length > 0) {
@@ -385,7 +385,7 @@ function initializeProjectsModule() {
 
     copyProjectForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const sourceProjectId = parseInt(sourceProjectSelect.value);
+        const sourceProjectId = sourceProjectSelect.value;
         const newProjectName = newProjectNameInputCopy.value.trim();
 
         if (!sourceProjectId || !newProjectName) {
@@ -420,8 +420,11 @@ function initializeProjectsModule() {
                 const changeOrderItemIdMap = new Map();
                 const oldNumericIdToNewUniqueIdMap = new Map();
 
-                const newProjectData = { ...sourceProject, id: undefined, projectName: newProjectName };
-                const newProjectId = await db.projects.add(newProjectData);
+                // Generate a new ULID for the copied project
+                const newProjectId = generateULID();
+                const newProjectData = { ...sourceProject, id: newProjectId, projectName: newProjectName };
+                // Use 'put' since we are providing the ID
+                await db.projects.put(newProjectData);
 
                 for (const q of quantities) {
                     const oldId = q.id;
@@ -517,7 +520,7 @@ function initializeProjectsModule() {
 
     projectForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const id = parseInt(projectIdInput.value);
+        const id = projectIdInput.value;
         const projectData = {
             projectName: projectNameInput.value,
             address: projectAddressInput.value,
@@ -534,8 +537,12 @@ function initializeProjectsModule() {
             projectManager: projectManagerInput.value || null,
             clientContact: clientContactInput.value || null,
         };
-        if (id) await db.projects.update(id, projectData);
-        else await db.projects.add(projectData);
+        if (id) {
+            await db.projects.update(id, projectData);
+        } else {
+            projectData.id = generateULID(); // Generate a ULID for the new project
+            await db.projects.add(projectData);
+        }
         closeProjectModal();
         await displayProjects();
     });
@@ -543,7 +550,7 @@ function initializeProjectsModule() {
     projectsTableBody.addEventListener('click', async (event) => {
     const target = event.target.closest('button'); // Ensure we target the button itself
     if (!target || !target.dataset.id) return;
-    const id = parseInt(target.dataset.id);
+    const id = target.dataset.id; // Project ID is now a string (ULID)
 
     if (target.classList.contains('summary-btn')) {
         showProjectSummary(id);

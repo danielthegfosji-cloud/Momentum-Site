@@ -11,6 +11,27 @@ let currentBoqProjectId = null;
 let currentHubProjectId = null;
 let appInitialized = false;
 
+/**
+ * Generates a ULID (Universally Unique Lexicographically Sortable Identifier).
+ * @returns {string} A 26-character ULID string.
+ */
+function generateULID() {
+    const ENCODING = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"; // Crockford's Base32
+    const ENCODING_LEN = ENCODING.length;
+    const TIME_LEN = 10;
+    const RANDOM_LEN = 16;
+    let time = Date.now();
+    let ulid = "";
+    for (let i = TIME_LEN; i > 0; i--) {
+        ulid = ENCODING.charAt(time % ENCODING_LEN) + ulid;
+        time = Math.floor(time / ENCODING_LEN);
+    }
+    for (let i = 0; i < RANDOM_LEN; i++) {
+        ulid += ENCODING.charAt(Math.floor(Math.random() * ENCODING_LEN));
+    }
+    return ulid;
+}
+
 const populateInitialDataIfNeeded = async () => {
     try {
         const projectCount = await db.projects.count();
@@ -130,7 +151,21 @@ window.addEventListener('load', () => {
         });
         startApp();
     }).catch(err => {
-        console.error("Failed to open db: ", err.stack || err);
+        if (err.name === 'UpgradeError') {
+            console.error("Database upgrade failed:", err);
+            const confirmation = confirm(
+                "A database schema upgrade is required, but it involves changes that cannot be done automatically. This is common during development when making breaking schema changes.\n\n" +
+                "Click OK to delete the local database and restart the application. All local, unsynced data will be lost."
+            );
+            if (confirmation) {
+                db.close();
+                Dexie.delete('constructionManagerDb').then(() => window.location.reload());
+            } else {
+                alert("The application cannot start without upgrading the database. Please backup any important data and refresh the page to try again.");
+            }
+        } else {
+            console.error("Failed to open db: ", err.stack || err);
+        }
     });
 });
 // --- End of app.js ---

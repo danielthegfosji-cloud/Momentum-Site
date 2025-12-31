@@ -238,4 +238,8 @@ db.version(19).stores({
 db.version(20).stores({
     resources: '++id, &[name+type], type'
 });
+
+db.version(21).stores({
+    projects: 'id, projectName' // From ++id to string ULID
+});
 // --- End of db.js ---

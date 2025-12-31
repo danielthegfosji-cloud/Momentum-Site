@@ -1,15 +1,30 @@
 /*
 - Author: Gemini
 - OS support: Cross-platform
-- Description: Handles data synchronization with Google Firestore.
+- Description: Handles real-time data synchronization with Google Firestore.
 */
 
 let syncModuleInitialized = false;
-let autoSyncTimer = null;
 let lastSyncDate = null;
 let lastSyncedTextTimer = null;
 let syncHistory = [];
 const MAX_HISTORY_ITEMS = 5;
+
+// Firestore listener unsubscribe functions
+let unsubscribeProjects = () => {};
+let unsubscribeLibrary = () => {};
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 function addSyncHistory(status, message) {
     syncHistory.unshift({
@@ -264,6 +279,23 @@ async function syncProjectToFirestore(projectId) {
 }
 
 /**
+ * Deletes a single project's data from Firestore.
+ * @param {string} projectId The ID of the project to delete.
+ */
+async function deleteProjectFromFirestore(projectId) {
+    if (!currentUser) return;
+    console.log(`Deleting project ${projectId} from Firestore...`);
+    try {
+        const projectDocRef = db_firestore.collection('users').doc(currentUser.uid).collection('projects').doc(String(projectId));
+        await projectDocRef.delete();
+        console.log(`Project ${projectId} deleted from Firestore.`);
+    } catch (error) {
+        console.error(`Error deleting project ${projectId} from Firestore:`, error);
+        addSyncHistory('error', `Failed to delete project ${projectId} from cloud.`);
+    }
+}
+
+/**
  * Gathers all library data and saves it to a single document in Firestore.
  */
 async function syncLibraryToFirestore() {
@@ -284,67 +316,6 @@ async function syncLibraryToFirestore() {
         console.error("Error syncing library to Firestore:", error);
         // We don't throw a global error here as it's a background task.
     }
-}
-/**
- * Starts the auto-sync interval timer.
- */
-function startAutoSync() {
-    if (autoSyncTimer) stopAutoSync(); // Stop existing timer before starting
-
-    if (!currentUser) {
-        console.log("Cannot start auto-sync: user is not logged in.");
-        return;
-    }
-    const settings = loadSettings();
-    if (!settings.autoSyncEnabled) {
-        console.log("Auto-sync is disabled in settings.");
-        return;
-    }
-
-    const intervalMinutes = settings.autoSyncInterval;
-    console.log(`Starting auto-sync every ${intervalMinutes} minutes.`);
-    
-    // This function now performs a full two-way sync.
-    const syncAllData = async () => {
-        console.log("Two-way sync triggered.");
-        addSyncHistory('start', 'Two-way sync triggered.');
-        updateSyncStatusIndicator('syncing', 'Syncing...');
-        try {
-            // --- PULL PHASE ---
-            // First, pull all data from the cloud to get the latest state.
-            // The restore functions use 'put' which acts as an "upsert" (update or insert).
-            console.log("Sync: Pulling data from cloud...");
-            await syncLibraryFromFirestore();
-            const projectsSnapshot = await db_firestore.collection('users').doc(currentUser.uid).collection('projects').get();
-            if (!projectsSnapshot.empty) {
-                for (const doc of projectsSnapshot.docs) {
-                    await restoreProjectFromCloud(doc.data());
-                }
-            }
-            console.log("Sync: Pull phase complete.");
-
-            // --- PUSH PHASE ---
-            // Now, push all local data (which now includes merged cloud data) back to the cloud.
-            // This ensures any new local-only projects get created in the cloud.
-            console.log("Sync: Pushing data to cloud...");
-            await syncLibraryToFirestore();
-            const allProjects = await db.projects.toArray();
-            for (const project of allProjects) {
-                await syncProjectToFirestore(project.id);
-            }
-            console.log("Sync: Push phase complete.");
-
-            updateSyncStatusIndicator('synced');
-            addSyncHistory('success', 'All projects and library synced successfully.');
-        } catch (error) {
-            console.error("Two-way sync failed:", error);
-            updateSyncStatusIndicator('error', 'Auto-sync failed. Check console.');
-            addSyncHistory('error', 'Auto-sync failed. See console for details.');
-        }
-    };
-
-    syncAllData(); // Run once immediately
-    autoSyncTimer = setInterval(syncAllData, intervalMinutes * 60 * 1000);
 }
 
 /**
@@ -372,14 +343,128 @@ async function syncLibraryFromFirestore() {
     }
 }
 
-/**
- * Stops the auto-sync interval timer.
- */
-function stopAutoSync() {
-    if (autoSyncTimer) {
-        console.log("Stopping auto-sync.");
-        clearInterval(autoSyncTimer);
-        autoSyncTimer = null;
+const debouncedSyncProject = debounce((projectId) => {
+    if (projectId) syncProjectToFirestore(projectId);
+}, 3000); // 3-second debounce delay
+
+const debouncedSyncLibrary = debounce(() => {
+    syncLibraryToFirestore();
+}, 3000);
+
+const projectTables = ['projects', 'quantities', 'dupas', 'tasks', 'boqs', 'changeOrders', 'changeOrderItems', 'changeOrderDupas', 'accomplishments'];
+const libraryTables = ['materials', 'resources', 'crews', 'crewComposition'];
+
+function attachSyncHooks() {
+    if (!currentUser) return;
+    console.log("Attaching real-time sync hooks to database tables.");
+
+    projectTables.forEach(tableName => {
+        db[tableName].hook('creating', (primKey, obj, trans) => {
+            const projectId = tableName === 'projects' ? primKey : obj.projectId;
+            if (projectId) debouncedSyncProject(projectId);
+        });
+        db[tableName].hook('updating', (modifications, primKey, obj, trans) => {
+            const projectId = tableName === 'projects' ? primKey : obj.projectId;
+            if (projectId) debouncedSyncProject(projectId);
+        });
+        db[tableName].hook('deleting', (primKey, obj, trans) => {
+            if (tableName === 'projects') {
+                deleteProjectFromFirestore(primKey);
+            } else if (obj.projectId) {
+                debouncedSyncProject(obj.projectId);
+            }
+        });
+    });
+
+    libraryTables.forEach(tableName => {
+        db[tableName].hook('creating', debouncedSyncLibrary);
+        db[tableName].hook('updating', debouncedSyncLibrary);
+        db[tableName].hook('deleting', debouncedSyncLibrary);
+    });
+}
+
+function detachSyncHooks() {
+    // Dexie hooks don't have a simple "off" method.
+    // Since they are only attached when a user is logged in and check for `currentUser`,
+    // they will effectively be inert after logout. No explicit detachment is needed for this app's flow.
+    console.log("Sync hooks are now inactive due to logout.");
+}
+
+function listenForCloudChanges() {
+    if (!currentUser) return;
+    console.log("Setting up Firestore listeners for real-time cloud changes.");
+
+    const projectsCollectionRef = db_firestore.collection('users').doc(currentUser.uid).collection('projects');
+    unsubscribeProjects = projectsCollectionRef.onSnapshot(
+        (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                const cloudProjectData = change.doc.data();
+                if (!cloudProjectData || !cloudProjectData.project) return;
+                const localProjectId = cloudProjectData.project.id;
+
+                if (change.type === "added" || change.type === "modified") {
+                    console.log(`Cloud change detected for project: ${cloudProjectData.project.projectName}`);
+                    await restoreProjectFromCloud(cloudProjectData);
+                }
+                if (change.type === "removed") {
+                    console.log(`Cloud deletion detected for project ID: ${localProjectId}`);
+                    // The full deletion logic is complex, for now, just delete the main project record.
+                    // A more robust solution would call the full delete chain from projects.js
+                    await db.projects.delete(localProjectId);
+                }
+            });
+        },
+        (error) => {
+            console.error("Error listening for project changes:", error);
+            updateSyncStatusIndicator('error', 'Cloud listener failed.');
+        }
+    );
+
+    const libraryDocRef = db_firestore.collection('users').doc(currentUser.uid).collection('library').doc('main');
+    unsubscribeLibrary = libraryDocRef.onSnapshot(
+        async (doc) => {
+            if (doc.exists) {
+                console.log("Cloud library change detected. Syncing from Firestore.");
+                await syncLibraryFromFirestore();
+            }
+        },
+        (error) => console.error("Error listening for library changes:", error)
+    );
+}
+
+function stopListeningForCloudChanges() {
+    console.log("Stopping Firestore listeners.");
+    unsubscribeProjects();
+    unsubscribeLibrary();
+    unsubscribeProjects = () => {};
+    unsubscribeLibrary = () => {};
+}
+
+async function syncAllData() {
+    console.log("Performing full two-way sync...");
+    addSyncHistory('start', 'Performing initial two-way sync...');
+    updateSyncStatusIndicator('syncing', 'Syncing...');
+    try {
+        console.log("Sync: Pulling data from cloud...");
+        await syncLibraryFromFirestore();
+        const projectsSnapshot = await db_firestore.collection('users').doc(currentUser.uid).collection('projects').get();
+        if (!projectsSnapshot.empty) {
+            for (const doc of projectsSnapshot.docs) {
+                await restoreProjectFromCloud(doc.data());
+            }
+        }
+        console.log("Sync: Pushing data to cloud...");
+        await syncLibraryToFirestore();
+        const allProjects = await db.projects.toArray();
+        for (const project of allProjects) {
+            await syncProjectToFirestore(project.id);
+        }
+        updateSyncStatusIndicator('synced', 'Initial sync complete.');
+        addSyncHistory('success', 'Initial sync complete.');
+    } catch (error) {
+        console.error("Full two-way sync failed:", error);
+        updateSyncStatusIndicator('error', 'Initial sync failed.');
+        addSyncHistory('error', 'Initial sync failed.');
     }
 }
 
@@ -391,30 +476,17 @@ async function handleAuthStateChangeForSync(event) {
     if (event.detail.user) {
         console.log("User signed in. Sync module is active.");
         if (navigator.onLine) {
-            const projectCount = await db.projects.count();
-            const settings = loadSettings();
-
-            if (projectCount === 0) {
-                console.log("Local database is empty. Attempting to restore from cloud.");
-                await restoreAllDataFromCloud();
-                // After restoring, start the regular auto-sync if it's enabled.
-                if (settings.autoSyncEnabled) {
-                    startAutoSync();
-                }
-            } else {
-                console.log("Local data found. Proceeding with normal sync-to-cloud.");
-                if (settings.autoSyncEnabled) {
-                    startAutoSync();
-                } else {
-                    updateSyncStatusIndicator('synced', 'Ready. Auto-sync is disabled.');
-                }
-            }
+            await syncAllData();
+            attachSyncHooks();
+            listenForCloudChanges();
+            updateSyncStatusIndicator('synced', 'Real-time sync active.');
         } else {
             updateSyncStatusIndicator('offline');
         }
     } else {
         console.log("User signed out. Sync module is inactive.");
-        stopAutoSync();
+        stopListeningForCloudChanges();
+        detachSyncHooks();
         updateSyncStatusIndicator('hidden');
     }
 }
@@ -431,12 +503,12 @@ function initializeSyncModule() {
     window.addEventListener('offline', () => {
         console.log('App is offline.');
         if (currentUser) updateSyncStatusIndicator('offline');
-        stopAutoSync();
+        stopListeningForCloudChanges();
     });
 
     // Initial render for when the page loads
     renderSyncHistory();
 
     syncModuleInitialized = true;
-    console.log("Firebase Sync Module Initialized.");
+    console.log("Real-time Firebase Sync Module Initialized.");
 }

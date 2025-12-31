@@ -51,6 +51,7 @@ const displayDupaQuantities = async () => {
 const showDupaQuantitiesForProject = async (projectId, projectName) => {
     currentDupaProjectId = projectId;
     dupaProjectName.textContent = projectName;
+    document.getElementById('back-to-dupa-projects').innerHTML = `&larr; Back to ${projectName}`;
     dupaFormView.classList.add('hidden');
     dupaQuantityListView.classList.remove('hidden');
     await displayDupaQuantities();
@@ -334,13 +335,40 @@ function initializeDupaModule() {
                 costType: type
             };
             if (type === 'lot') {
-                laborData.amount = parseFloat(row.querySelector('.labor-rate').value);
+                laborData.amount = parseFloat(row.querySelector('.labor-rate').value) || 0;
             } else {
-                laborData.mandays = parseFloat(row.querySelector('.labor-mandays').value);
-                laborData.rate = parseFloat(row.querySelector('.labor-rate').value);
+                laborData.mandays = parseFloat(row.querySelector('.labor-mandays').value) || 0;
+                laborData.rate = parseFloat(row.querySelector('.labor-rate').value) || 0;
             }
             directCosts.push(laborData);
         });
+        materialTbody.querySelectorAll('tr').forEach(row => {
+            directCosts.push({
+                type: 'material',
+                name: row.querySelector('.material-name').value,
+                quantity: parseFloat(row.querySelector('.material-qty').value) || 0,
+                unit: row.querySelector('.material-unit').value,
+                unitPrice: parseFloat(row.querySelector('.material-price').value) || 0
+            });
+        });
+        equipmentTbody.querySelectorAll('tr').forEach(row => {
+            directCosts.push({
+                type: 'equipment',
+                name: row.querySelector('.equipment-name').value,
+                hours: parseFloat(row.querySelector('.equipment-hours').value) || 0,
+                rate: parseFloat(row.querySelector('.equipment-rate').value) || 0
+            });
+        });
+        const dupaData = {
+            quantityId: parseInt(dupaQuantityIdInput.value),
+            duration: parseInt(dupaDurationInput.value) || 0,
+            directCosts: directCosts,
+            indirectCosts: {
+                ocm: parseFloat(ocmPercentInput.value) || 0,
+                profit: parseFloat(profitPercentInput.value) || 0,
+                taxes: parseFloat(taxesPercentInput.value) || 0
+            }
+        };
         if (dupaIdInput.value) { dupaData.id = parseInt(dupaIdInput.value); }
         await db.dupas.put(dupaData);
         alert('DUPA saved successfully!');

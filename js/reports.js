@@ -82,6 +82,7 @@ const displayBoqFromData = (boqData) => {
 const showRevisedBoqForProject = async (projectId, projectName, showTheView = true) => {
     currentBoqProjectId = projectId;
     revisedBoqProjectName.textContent = `Revised BOQ: ${projectName}`;
+    document.getElementById('back-to-revised-boq-projects').innerHTML = `&larr; Back to ${projectName}`;
     
     // Always fetch and render the data in the background
     const { allTasks, allDupas } = await getAllTasksForReport(projectId, true);
@@ -246,6 +247,7 @@ const promptToGenerateBoq = () => {
 const showBoqForProject = async (projectId, projectName) => {
     currentBoqProjectId = projectId;
     boqProjectName.textContent = `Bill of Quantities: ${projectName}`;
+    document.getElementById('back-to-boq-projects').innerHTML = `&larr; Back to ${projectName}`;
     pertCpmDisplayView.classList.add('hidden');
     ganttChartDisplayView.classList.add('hidden');
     sCurveDisplayView.classList.add('hidden');
@@ -485,7 +487,9 @@ const showSCurveForProject = async () => {
     resourceScheduleView.classList.add('hidden');
     boqDisplayView.classList.add('hidden');
     sCurveDisplayView.classList.remove('hidden');
-    sCurveProjectName.textContent = `S-Curve: ${boqProjectName.textContent.replace('Bill of Quantities: ', '')}`;
+    const projectName = boqProjectName.textContent.replace('Bill of Quantities: ', '');
+ sCurveProjectName.textContent = `S-Curve: ${projectName}`;
+    document.getElementById('back-to-pert-cpm-view-from-s-curve').innerHTML = `&larr; Back to ${projectName}`;
 
     const data = await getSCurveData(currentBoqProjectId);
 
@@ -567,7 +571,9 @@ const showNetworkDiagram = async () => {
     resourceScheduleView.classList.add('hidden');
     boqDisplayView.classList.add('hidden');
     pertCpmNetworkView.classList.remove('hidden');
-    networkDiagramProjectName.textContent = `Network Diagram: ${boqProjectName.textContent.replace('Bill of Quantities: ', '')}`;
+    const projectName = boqProjectName.textContent.replace('Bill of Quantities: ', '');
+ networkDiagramProjectName.textContent = `Network Diagram: ${projectName}`;
+    document.getElementById('back-to-pert-cpm-from-network-btn').innerHTML = `&larr; Back to ${projectName}`;
 
     const diagramContainer = pertCpmNetworkView.querySelector('.mermaid');
     diagramContainer.innerHTML = 'Loading diagram...';
@@ -629,8 +635,10 @@ const showManpowerEquipmentSchedule = async () => {
     boqDisplayView.classList.add('hidden');
     resourceScheduleView.classList.remove('hidden');
 
-    const resourceScheduleProjectName = document.getElementById('resource-schedule-project-name');
-    resourceScheduleProjectName.textContent = `Resource Schedule: ${boqProjectName.textContent.replace('Bill of Quantities: ', '')}`;
+    const resourceScheduleProjectName = document.getElementById('resource-schedule-project-name');
+    const projectName = boqProjectName.textContent.replace('Bill of Quantities: ', '');
+    resourceScheduleProjectName.textContent = `Resource Schedule: ${projectName}`;
+    document.getElementById('back-to-pert-cpm-from-resource-btn').innerHTML = `&larr; Back to ${projectName}`;
 
     const scheduleContainer = document.getElementById('resource-schedule-container');
     scheduleContainer.innerHTML = 'Loading schedule...';
@@ -776,7 +784,9 @@ const showManpowerEquipmentSchedule = async () => {
 const showRevisedResourceSchedule = async () => {
     revisedBoqDisplayView.classList.add('hidden');
     revisedPertCpmDisplayView.classList.add('hidden');
-    revisedResourceScheduleView.classList.remove('hidden');
+    revisedResourceScheduleView.classList.remove('hidden');
+    const projectName = revisedBoqProjectName.textContent.replace('Revised BOQ: ', '');
+    document.getElementById('back-to-revised-pert-cpm-from-resource-btn').innerHTML = `&larr; Back to ${projectName}`;
     document.getElementById('revised-resource-schedule-project-name').textContent = `Revised Resource Schedule: ${revisedBoqProjectName.textContent.replace('Revised BOQ: ', '')}`;
     const scheduleContainer = document.getElementById('revised-resource-schedule-container');
     scheduleContainer.innerHTML = 'Loading schedule...';
@@ -1064,7 +1074,9 @@ const showCoItemDupaDetails = async (coItemId) => {
 const showRevisedNetworkDiagram = async () => {
     revisedBoqDisplayView.classList.add('hidden');
     revisedPertCpmDisplayView.classList.add('hidden');
-    revisedPertCpmNetworkView.classList.remove('hidden');
+    revisedPertCpmNetworkView.classList.remove('hidden');
+    const projectName = revisedBoqProjectName.textContent.replace('Revised BOQ: ', '');
+    document.getElementById('back-to-revised-pert-cpm-from-network-btn').innerHTML = `&larr; Back to ${projectName}`;
     document.getElementById('revised-network-diagram-project-name').textContent = `Revised Network Diagram: ${revisedBoqProjectName.textContent.replace('Revised BOQ: ', '')}`;
     const diagramContainer = revisedPertCpmNetworkView.querySelector('.mermaid');
     diagramContainer.innerHTML = 'Loading diagram...';
@@ -1117,7 +1129,9 @@ const showRevisedNetworkDiagram = async () => {
 const showRevisedPertCpmForProject = async () => {
     revisedBoqDisplayView.classList.add('hidden');
     revisedPertCpmDisplayView.classList.remove('hidden');
-    revisedPertCpmProjectName.textContent = `Revised PERT-CPM: ${revisedBoqProjectName.textContent.replace('Revised BOQ: ', '')}`;
+    const projectName = revisedBoqProjectName.textContent.replace('Revised BOQ: ', '');
+    revisedPertCpmProjectName.textContent = `Revised PERT-CPM: ${projectName}`;
+    document.getElementById('back-to-revised-boq-view').innerHTML = `&larr; Back to ${projectName}`;
 
     const data = await getPertCpmData(currentBoqProjectId, true);
     if (!data) {

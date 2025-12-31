@@ -55,8 +55,12 @@ function handleAuthClick() {
                 console.log("Signed in as:", result.user.displayName);
                 // The onAuthStateChanged listener will handle the UI update automatically.
             }).catch((error) => {
+                if (error.code === 'auth/popup-closed-by-user') {
+                    alert('The sign-in window was closed before completing. If you are on a new domain (like GitHub Pages), make sure it has been added as an "Authorized Domain" in your Firebase Authentication settings.');
+                } else {
+                    alert(`Google sign-in error: ${error.message}`);
+                }
                 console.error("Firebase Auth Error:", error.code, error.message);
-                alert(`Google sign-in error: ${error.message}`);
             });
     } else {
         // User is signed in, so sign them out.

@@ -419,6 +419,7 @@ const populateAccomplishmentTable = async (projectId) => {
 const showAccomplishmentForm = async (projectId, projectName) => {
     currentConstructionProjectId = projectId;
     accomplishmentProjectName.textContent = projectName;
+    document.getElementById('back-to-accomplishment-projects').innerHTML = `&larr; Back to ${projectName}`;
 
     showView(accomplishmentView);
     document.getElementById('accomplishment-list-view').classList.add('hidden');
@@ -720,6 +721,7 @@ const getConstructionReadyProjects = async () => {
 const showLookAheadReportView = (projectId, projectName) => {
     currentConstructionProjectId = projectId;
     document.getElementById('lookahead-report-view').classList.remove('hidden');
+    document.getElementById('back-to-lookahead-projects').innerHTML = `&larr; Back to ${projectName}`;
     document.getElementById('lookahead-project-name').textContent = `Look-Ahead: ${projectName}`;
     document.getElementById('lookahead-start-date').valueAsDate = new Date();
     document.getElementById('lookahead-report-content').innerHTML = `<p class="placeholder-text">Please select a start date and click "Generate Report" to see the look-ahead schedule.</p>`;
@@ -730,6 +732,7 @@ const showTrackingGanttChart = async (projectId, projectName) => {
     currentConstructionProjectId = projectId; 
     trackingGanttChartView.classList.remove('hidden');
     trackingGanttProjectName.textContent = `Tracking Gantt: ${projectName}`;
+    document.getElementById('back-to-tracking-gantt-projects').innerHTML = `&larr; Back to ${projectName}`;
 
     const ganttContainer = document.getElementById('tracking-gantt-chart-target');
     ganttContainer.innerHTML = 'Loading Chart...';
@@ -830,6 +833,7 @@ function getChartColors() {
 const renderTrackingSCurve = async (projectId, projectName) => {
     currentConstructionProjectId = projectId;
     trackingSCurveChartView.classList.remove('hidden');
+    document.getElementById('back-to-tracking-s-curve-projects').innerHTML = `&larr; Back to ${projectName}`;
     trackingSCurveProjectName.textContent = `Tracking S-Curve: ${projectName}`;
 
     const plannedData = await getSCurveData(projectId, true);

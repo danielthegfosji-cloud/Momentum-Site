@@ -161,6 +161,7 @@ const handleEditSequenceClick = async (taskUniqueId) => {
 const showSequencesForProject = async (projectId, projectName) => {
     currentSequencingProjectId = projectId;
     sequencingProjectName.textContent = projectName;
+    document.getElementById('back-to-sequencing-projects').innerHTML = `&larr; Back to ${projectName}`;
     sequencingTasksView.classList.remove('hidden');
     await displaySequencesOverview();
 };

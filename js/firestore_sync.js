@@ -158,7 +158,7 @@ async function restoreProjectFromCloud(projectData) {
  * Fetches all project data from the current user's Firestore collection
  * and restores it to the local database.
  */
-async function syncAllDataFromFirestore() {
+async function restoreAllDataFromCloud() {
     if (!currentUser) {
         console.warn("Cannot sync from Firestore: User not logged in.");
         return;
@@ -167,6 +167,9 @@ async function syncAllDataFromFirestore() {
     addSyncHistory('start', 'Restoring data from cloud...');
 
     try {
+        // First, restore the library to ensure all dependencies are met.
+        await syncLibraryFromFirestore();
+
         const projectsSnapshot = await db_firestore.collection('users').doc(currentUser.uid).collection('projects').get();
         if (projectsSnapshot.empty) {
             console.log("No projects found in the cloud to restore.");
@@ -181,8 +184,10 @@ async function syncAllDataFromFirestore() {
 
         console.log("Cloud restore complete.");
         updateSyncStatusIndicator('synced', 'Cloud data restored.');
-        addSyncHistory('success', 'Successfully restored data from cloud.');
-        showDashboard(); // Refresh the UI to show the newly downloaded data.
+        addSyncHistory('success', 'Successfully restored all data from cloud.');
+        // A full reload is the most reliable way to ensure the UI is consistent after a full restore.
+        alert("Sync complete. The application will now reload to reflect the restored data.");
+        window.location.reload();
     } catch (error) {
         console.error("Error syncing all data from Firestore:", error);
         updateSyncStatusIndicator('error', 'Failed to restore from cloud.');
@@ -259,6 +264,28 @@ async function syncProjectToFirestore(projectId) {
 }
 
 /**
+ * Gathers all library data and saves it to a single document in Firestore.
+ */
+async function syncLibraryToFirestore() {
+    if (!currentUser) return;
+    console.log("Syncing library to Firestore...");
+    try {
+        const libraryData = {
+            materials: await db.materials.toArray(),
+            resources: await db.resources.toArray(),
+            crews: await db.crews.toArray(),
+            crewComposition: await db.crewComposition.toArray(),
+            timestamp: new Date()
+        };
+        const libraryDocRef = db_firestore.collection('users').doc(currentUser.uid).collection('library').doc('main');
+        await libraryDocRef.set(libraryData, { merge: true });
+        console.log("Library synced successfully.");
+    } catch (error) {
+        console.error("Error syncing library to Firestore:", error);
+        // We don't throw a global error here as it's a background task.
+    }
+}
+/**
  * Starts the auto-sync interval timer.
  */
 function startAutoSync() {
@@ -277,27 +304,31 @@ function startAutoSync() {
     const intervalMinutes = settings.autoSyncInterval;
     console.log(`Starting auto-sync every ${intervalMinutes} minutes.`);
     
-    const syncAllProjects = async () => {
+    const syncAllData = async () => {
         console.log("Auto-sync triggered.");
         addSyncHistory('start', 'Auto-sync triggered.');
         updateSyncStatusIndicator('syncing');
         try {
+            // Sync the entire library first.
+            await syncLibraryToFirestore();
+
+            // Then, sync each project individually.
             const allProjects = await db.projects.toArray();
             for (const project of allProjects) {
                 await syncProjectToFirestore(project.id);
             }
             console.log("Auto-sync finished.");
             updateSyncStatusIndicator('synced');
-            addSyncHistory('success', 'All projects synced successfully.');
+            addSyncHistory('success', 'All projects and library synced successfully.');
         } catch (error) {
-            console.error("Auto-sync failed during project iteration:", error);
+            console.error("Auto-sync failed:", error);
             updateSyncStatusIndicator('error', 'Auto-sync failed. Check console.');
             addSyncHistory('error', 'Auto-sync failed. See console for details.');
         }
     };
 
-    syncAllProjects(); // Run once immediately
-    autoSyncTimer = setInterval(syncAllProjects, intervalMinutes * 60 * 1000);
+    syncAllData(); // Run once immediately
+    autoSyncTimer = setInterval(syncAllData, intervalMinutes * 60 * 1000);
 }
 
 /**
@@ -324,7 +355,7 @@ async function handleAuthStateChangeForSync(event) {
 
             if (projectCount === 0) {
                 console.log("Local database is empty. Attempting to restore from cloud.");
-                await syncAllDataFromFirestore();
+                await restoreAllDataFromCloud();
                 // After restoring, start the regular auto-sync if it's enabled.
                 if (settings.autoSyncEnabled) {
                     startAutoSync();

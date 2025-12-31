@@ -176,6 +176,7 @@ const renderCoItems = async (changeOrderId) => {
 const showChangeOrdersForProject = async (projectId, projectName) => {
     currentCoProjectId = projectId;
     coProjectName.textContent = `Change Orders: ${projectName}`;
+    document.getElementById('back-to-co-projects').innerHTML = `&larr; Back to ${projectName}`;
     coListView.classList.remove('hidden');
 
     coTableBody.innerHTML = '';

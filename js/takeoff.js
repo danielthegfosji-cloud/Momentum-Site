@@ -59,6 +59,7 @@ const displayQuantities = async () => {
 const showQuantitiesForProject = async (projectId, projectName) => {
     currentProjectId = projectId;
     quantitiesProjectName.textContent = projectName;
+    document.getElementById('back-to-takeoff-list').innerHTML = `&larr; Back to ${projectName}`;
     takeoffQuantitiesView.classList.remove('hidden');
 
     const lockedBoq = await db.boqs.get({ projectId: projectId });

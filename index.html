@@ -85,10 +85,15 @@
                         </select>
                     </div>
                 </div>
+                <div class="summary-card" style="text-align: left; max-width: 600px; margin-top: 2rem;">
+                    <h2 class="card-title">Recent Sync Activity</h2>
+                    <ul id="sync-history-log">
+                    </ul>
+                </div>
             </div>
             <div id="dashboard-view">
                 <header class="page-header">
-                    <h1>Dashboard</h1>
+                    <h1>Dashboard <span id="sync-status-indicator" class="hidden" title="Sync Status"></span></h1>
                 </header>
                 <div class="dashboard-grid-new">
                         <div class="summary-card">
@@ -1177,6 +1182,7 @@
         </main>
         <footer class="app-footer">
             <p>© 2025 Momentum alpha 2.0 | Daniel Pollentes. All Rights Reserved.</p>
+            <p id="footer-last-synced" class="hidden" style="font-size: 0.8rem; color: var(--grey-color); margin-top: 5px;"></p>
         </footer>
 
         <div id="project-modal" class="modal">

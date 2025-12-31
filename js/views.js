@@ -121,6 +121,7 @@ const showView = (activeView) => {
 const showSyncSettings = () => {
     showView(settingsView);
     setActiveNav(navSyncSettings);
+    renderSyncHistory();
 };
 
 const showDashboard = () => { showView(dashboardView); setActiveNav(navDashboard); updateDashboard(); };

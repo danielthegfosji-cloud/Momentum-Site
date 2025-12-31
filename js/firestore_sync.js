@@ -304,24 +304,40 @@ function startAutoSync() {
     const intervalMinutes = settings.autoSyncInterval;
     console.log(`Starting auto-sync every ${intervalMinutes} minutes.`);
     
+    // This function now performs a full two-way sync.
     const syncAllData = async () => {
-        console.log("Auto-sync triggered.");
-        addSyncHistory('start', 'Auto-sync triggered.');
-        updateSyncStatusIndicator('syncing');
+        console.log("Two-way sync triggered.");
+        addSyncHistory('start', 'Two-way sync triggered.');
+        updateSyncStatusIndicator('syncing', 'Syncing...');
         try {
-            // Sync the entire library first.
-            await syncLibraryToFirestore();
+            // --- PULL PHASE ---
+            // First, pull all data from the cloud to get the latest state.
+            // The restore functions use 'put' which acts as an "upsert" (update or insert).
+            console.log("Sync: Pulling data from cloud...");
+            await syncLibraryFromFirestore();
+            const projectsSnapshot = await db_firestore.collection('users').doc(currentUser.uid).collection('projects').get();
+            if (!projectsSnapshot.empty) {
+                for (const doc of projectsSnapshot.docs) {
+                    await restoreProjectFromCloud(doc.data());
+                }
+            }
+            console.log("Sync: Pull phase complete.");
 
-            // Then, sync each project individually.
+            // --- PUSH PHASE ---
+            // Now, push all local data (which now includes merged cloud data) back to the cloud.
+            // This ensures any new local-only projects get created in the cloud.
+            console.log("Sync: Pushing data to cloud...");
+            await syncLibraryToFirestore();
             const allProjects = await db.projects.toArray();
             for (const project of allProjects) {
                 await syncProjectToFirestore(project.id);
             }
-            console.log("Auto-sync finished.");
+            console.log("Sync: Push phase complete.");
+
             updateSyncStatusIndicator('synced');
             addSyncHistory('success', 'All projects and library synced successfully.');
         } catch (error) {
-            console.error("Auto-sync failed:", error);
+            console.error("Two-way sync failed:", error);
             updateSyncStatusIndicator('error', 'Auto-sync failed. Check console.');
             addSyncHistory('error', 'Auto-sync failed. See console for details.');
         }
@@ -329,6 +345,31 @@ function startAutoSync() {
 
     syncAllData(); // Run once immediately
     autoSyncTimer = setInterval(syncAllData, intervalMinutes * 60 * 1000);
+}
+
+/**
+ * Fetches the main library document from Firestore and restores it to the local Dexie DB.
+ */
+async function syncLibraryFromFirestore() {
+    if (!currentUser) return;
+    console.log("Syncing library from Firestore...");
+    try {
+        const libraryDocRef = db_firestore.collection('users').doc(currentUser.uid).collection('library').doc('main');
+        const doc = await libraryDocRef.get();
+        if (doc.exists) {
+            const libraryData = doc.data();
+            // Use bulkPut for an "upsert" operation on all library tables.
+            await db.transaction('rw', db.materials, db.resources, db.crews, db.crewComposition, async () => {
+                if (libraryData.materials) await db.materials.bulkPut(libraryData.materials);
+                if (libraryData.resources) await db.resources.bulkPut(libraryData.resources);
+                if (libraryData.crews) await db.crews.bulkPut(libraryData.crews);
+                if (libraryData.crewComposition) await db.crewComposition.bulkPut(libraryData.crewComposition);
+            });
+            console.log("Library data successfully synced from cloud.");
+        }
+    } catch (error) {
+        console.error("Error syncing library from Firestore:", error);
+    }
 }
 
 /**
